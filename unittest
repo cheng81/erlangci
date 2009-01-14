@@ -1,0 +1,37 @@
+#!/usr/bin/env escript
+
+main(Dirs) ->
+	code:add_path("ebin"),
+	lists:foreach(
+	fun(Dir) ->
+		case file:list_dir(Dir ++ "/src") of
+			{ok, FileNames} -> 
+				io:format("--- Execute tests for modules in dir ~s ---~n",[Dir ++ "/src"]),
+				exec_tests(FileNames),
+				io:format("~n~n");
+			{error, Reason} -> io:format("Cannot open dir ~s: ~p~n",[Dir,Reason])
+		end
+	end,
+	Dirs).
+
+exec_tests([]) -> ok;
+exec_tests([FileName|T]) ->
+	%% why the erlang:function_exported(Mod,test,0) is not working here?!
+	Mod = module_name(FileName),
+	if Mod /= not_a_module ->
+		io:format("- Executing test of module: ~s ***~n", [Mod]),
+		try
+			apply( Mod, test, [])
+		catch Class:Term -> io:format(" !!! Error: ~p:~p~n",[Class,Term]) end,
+		io:format(" *** End ***~n");
+	true -> ok end,
+	exec_tests(T).
+
+module_name(File) ->
+	if length(File) =< 4 -> not_a_module;
+	true ->
+		case string:substr(File,length(File) - 3) of
+			 ".erl" -> list_to_atom(string:substr(File,1,length(File) - 4));
+			_ -> not_a_module
+		end
+	end.
